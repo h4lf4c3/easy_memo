@@ -16,6 +16,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@visactor/vchart": "^2.0.3",
+    "@visactor/vtable-gantt": "^1.19.6",
     "electron-store": "^8.2.0"
   },
   "devDependencies": {

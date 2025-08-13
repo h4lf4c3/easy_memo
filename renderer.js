@@ -9,8 +9,6 @@ const tasksList = document.getElementById('tasks-list');
 const currentProjectName = document.getElementById('current-project-name');
 const tableView = document.getElementById('table-view');
 const ganttView = document.getElementById('gantt-view');
-const ganttTasks = document.getElementById('gantt-tasks');
-const ganttHeaderScale = document.querySelector('.gantt-header-scale');
 
 // 按钮
 const addProjectBtn = document.getElementById('add-project-btn');
@@ -187,6 +185,7 @@ function renderTasks(tasks) {
     
     // 格式化日期
     const createdDate = new Date(task.createdAt).toLocaleString();
+    const startDate = task.startDate ? new Date(task.startDate).toLocaleDateString() : '未设置';
     const dueDate = task.dueDate ? new Date(task.dueDate).toLocaleDateString() : '未设置';
     
     // 设置优先级和完成状态的样式类
@@ -198,6 +197,7 @@ function renderTasks(tasks) {
       <td title="${task.content}">${task.name || task.content}</td>
       <td>${createdDate}</td>
       <td class="${priorityClass}">${task.priority}</td>
+      <td>${startDate}</td>
       <td>${dueDate}</td>
       <td class="${statusClass}">${task.completed ? '已完成' : '未完成'}</td>
       <td>
@@ -271,6 +271,7 @@ function openTaskModal(task = null) {
   const taskNameInput = document.getElementById('task-name');
   const taskContentInput = document.getElementById('task-content');
   const taskPriorityInput = document.getElementById('task-priority');
+  const taskStartDateInput = document.getElementById('task-start-date');
   const taskDueDateInput = document.getElementById('task-due-date');
   const taskCompletedInput = document.getElementById('task-completed');
   
@@ -280,6 +281,7 @@ function openTaskModal(task = null) {
     taskNameInput.value = task.name || task.content; // 兼容旧数据
     taskContentInput.value = task.content;
     taskPriorityInput.value = task.priority;
+    taskStartDateInput.value = task.startDate ? task.startDate.split('T')[0] : '';
     taskDueDateInput.value = task.dueDate ? task.dueDate.split('T')[0] : '';
     taskCompletedInput.value = task.completed.toString();
   } else {
@@ -288,6 +290,7 @@ function openTaskModal(task = null) {
     taskNameInput.value = '';
     taskContentInput.value = '';
     taskPriorityInput.value = '中';
+    taskStartDateInput.value = '';
     taskDueDateInput.value = '';
     taskCompletedInput.value = 'false';
   }
@@ -344,6 +347,7 @@ taskForm.addEventListener('submit', (e) => {
   const taskName = document.getElementById('task-name').value;
   const taskContent = document.getElementById('task-content').value;
   const taskPriority = document.getElementById('task-priority').value;
+  const taskStartDate = document.getElementById('task-start-date').value;
   const taskDueDate = document.getElementById('task-due-date').value;
   const taskCompleted = document.getElementById('task-completed').value === 'true';
   
@@ -352,6 +356,7 @@ taskForm.addEventListener('submit', (e) => {
     name: taskName,
     content: taskContent,
     priority: taskPriority,
+    startDate: taskStartDate,
     dueDate: taskDueDate,
     completed: taskCompleted
   };
@@ -370,202 +375,322 @@ ipcRenderer.on('task-saved', (event, task) => {
   loadTasks(currentProjectId);
 });
 
+// 全局甘特图实例
+let ganttInstance = null;
+
 // 渲染甘特图
 function renderGanttChart(tasks) {
-  // 清空甘特图容器
-  ganttTasks.innerHTML = '';
-  ganttHeaderScale.innerHTML = '';
+  const ganttContainer = document.getElementById('gantt-container');
   
   if (tasks.length === 0) {
-    ganttTasks.innerHTML = '<div class="gantt-empty">暂无任务</div>';
+    ganttContainer.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #999;">暂无任务</div>';
     return;
   }
   
-  // 计算日期范围
-  const dates = calculateDateRange(tasks);
-  const { startDate, endDate, dayCount } = dates;
+  // 转换任务数据格式
+  const records = tasks.map(task => ({
+    id: task.id,
+    title: task.name || task.content,
+    start: task.startDate || task.createdAt.split('T')[0],
+    end: task.dueDate || task.startDate || task.createdAt.split('T')[0],
+    progress: task.completed ? 100 : 0,
+    priority: task.priority || '低', // 为没有优先级的任务设置默认值
+    content: task.content
+  }));
   
-  // 渲染日期刻度
-  renderDateScale(startDate, dayCount);
-  
-  // 渲染任务条
-  tasks.forEach((task, index) => {
-    renderGanttTask(task, index, dates);
-  });
-  
-  // 添加今日线
-  addTodayLine(startDate, dayCount);
-}
-
-// 计算甘特图的日期范围
-function calculateDateRange(tasks) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  
-  // 默认显示从今天开始的30天
-  let startDate = new Date(today);
-  let endDate = new Date(today);
-  endDate.setDate(endDate.getDate() + 30);
-  
-  // 遍历任务，找出最早的创建日期和最晚的截止日期
-  tasks.forEach(task => {
-    const createdDate = new Date(task.createdAt);
-    createdDate.setHours(0, 0, 0, 0);
-    
-    if (createdDate < startDate) {
-      startDate = new Date(createdDate);
+  // 定义列配置
+  const columns = [
+    {
+      field: 'title',
+      title: '任务名称',
+      width: 80,
+      sort: true,
+      editor: 'input'
+    },
+    {
+      field: 'start',
+      title: '开始时间',
+      width: 80,
+      sort: true,
+      editor: 'date-input'
+    },
+    {
+      field: 'end',
+      title: '结束时间',
+      width: 80,
+      sort: true,
+      editor: 'date-input'
     }
+  ];
+  
+  // 甘特图配置
+  const option = {
+    overscrollBehavior: 'none',
+    records,
+    taskListTable: {
+      columns,
+      tableWidth: 350,
+      minTableWidth: 200,
+      maxTableWidth: 500,
+      theme: {
+        headerStyle: {
+          borderColor: '#e1e4e8',
+          borderLineWidth: [1, 0, 1, 0],
+          fontSize: 14,
+          fontWeight: 'bold',
+          color: '#333',
+          bgColor: '#f8f9fa'
+        },
+        bodyStyle: {
+          borderColor: '#e1e4e8',
+          borderLineWidth: [1, 0, 1, 0],
+          fontSize: 13,
+          color: '#333',
+          bgColor: '#fff'
+        }
+      }
+    },
+    frame: {
+      outerFrameStyle: {
+        borderLineWidth: 1,
+        borderColor: '#e1e4e8',
+        cornerRadius: 0
+      },
+      verticalSplitLine: {
+        lineColor: '#e1e4e8',
+        lineWidth: 1,
+        lineDash: []
+      },
+      horizontalSplitLine: {
+        lineColor: '#e1e4e8',
+        lineWidth: 1
+      },
+      verticalSplitLineMoveable: true,
+      verticalSplitLineHighlight: {
+        lineColor: '#007bff',
+        lineWidth: 1
+      }
+    },
+    grid: {
+      verticalLine: {
+        lineWidth: 1,
+        lineColor: '#f0f0f0'
+      },
+      horizontalLine: {
+        lineWidth: 1,
+        lineColor: '#f0f0f0'
+      }
+    },
+    headerRowHeight: 35,
+    rowHeight: 35,
+    taskBar: {
+      startDateField: 'start',
+      endDateField: 'end',
+      progressField: 'progress',
+      resizable: true,
+      moveable: true,
+      hoverBarStyle: {
+        barOverlayColor: 'rgba(0, 123, 255, 0.2)'
+      },
+      labelText: '{title}',
+      labelTextStyle: {
+        fontFamily: 'Arial, sans-serif',
+        fontSize: 12,
+        textAlign: 'left',
+        textOverflow: 'ellipsis',
+        color: '#fff'
+      },
+      barStyle: {
+        width: 20,
+        cornerRadius: 4,
+        borderLineWidth: 1,
+        borderColor: '#fff'
+      },
+      customLayout: (args) => {
+        const { width, height, taskRecord, progress } = args;
+        const priority = taskRecord.priority || '低';
+        const isCompleted = progress >= 100;
+        
+        // 根据完成状态和优先级确定颜色
+        let barColor;
+        if (isCompleted) {
+          barColor = '#155724'; // 已完成任务使用深绿色
+        } else {
+          // 未完成任务根据紧急度设置颜色
+          if (priority === '高') {
+            barColor = '#dc3545'; // 红色
+          } else if (priority === '中') {
+            barColor = '#ffc107'; // 黄色
+          } else {
+            barColor = '#007bff'; // 蓝色
+          }
+        }
+        
+        // 创建自定义任务条
+        const container = new VTableGantt.VRender.Group({
+          width,
+          height
+        });
+        
+        // 背景条
+        const backgroundBar = new VTableGantt.VRender.Rect({
+          x: 0,
+          y: (height - 20) / 2,
+          width: width,
+          height: 20,
+          fill: '#e9ecef',
+          cornerRadius: 4,
+          stroke: '#fff',
+          lineWidth: 1
+        });
+        container.add(backgroundBar);
+        
+        // 进度条
+        const progressWidth = (width * progress) / 100;
+        if (progressWidth > 0) {
+          const progressBar = new VTableGantt.VRender.Rect({
+            x: 0,
+            y: (height - 20) / 2,
+            width: progressWidth,
+            height: 20,
+            fill: '#28a745', // 进度条始终为绿色
+            cornerRadius: 4
+          });
+          container.add(progressBar);
+        }
+        
+        // 主任务条
+        const taskBar = new VTableGantt.VRender.Rect({
+          x: 0,
+          y: (height - 20) / 2,
+          width: width,
+          height: 20,
+          fill: barColor,
+          cornerRadius: 4,
+          stroke: '#fff',
+          lineWidth: 1,
+          fillOpacity: isCompleted ? 1 : 0.8
+        });
+        container.add(taskBar);
+        
+        return {
+          rootContainer: container,
+          renderDefaultBar: false,
+          renderDefaultText: true
+        };
+      }
+    },
+    timelineHeader: {
+      colWidth: 80,
+      backgroundColor: '#f8f9fa',
+      horizontalLine: {
+        lineWidth: 1,
+        lineColor: '#e1e4e8'
+      },
+      verticalLine: {
+        lineWidth: 1,
+        lineColor: '#e1e4e8'
+      },
+      scales: [
+          {
+            unit: 'month',
+            step: 1,
+            format(date) {
+              const startDate = new Date(date.startDate);
+              return `${startDate.getFullYear()}年${startDate.getMonth() + 1}月`;
+            },
+            style: {
+              fontSize: 14,
+              fontWeight: 'bold',
+              color: '#333',
+              textAlign: 'center',
+              backgroundColor: '#f8f9fa'
+            }
+          },
+          {
+            unit: 'day',
+            step: 1,
+            format(date) {
+              const startDate = new Date(date.startDate);
+              return `${startDate.getMonth() + 1}/${startDate.getDate()}`;
+            },
+            style: {
+              fontSize: 12,
+              color: '#666',
+              textAlign: 'center',
+              backgroundColor: '#f8f9fa'
+            }
+          }
+        ]
+    },
+    markLine: [
+      {
+        date: new Date().toISOString().split('T')[0],
+        scrollToMarkLine: false,
+        position: 'left',
+        style: {
+          lineColor: '#dc3545',
+          lineWidth: 2
+        }
+      }
+    ],
+    rowSeriesNumber: {
+      title: '序号',
+      dragOrder: false,
+      headerStyle: {
+        bgColor: '#f8f9fa',
+        borderColor: '#e1e4e8'
+      },
+      style: {
+        borderColor: '#e1e4e8'
+      }
+    },
+    scrollStyle: {
+      scrollRailColor: 'rgba(0,0,0,0.1)',
+      visible: 'scrolling',
+      width: 8,
+      scrollSliderCornerRadius: 4,
+      scrollSliderColor: '#007bff'
+    }
+  };
+  
+  // 销毁之前的实例
+  if (ganttInstance) {
+    ganttInstance.release();
+  }
+  
+  // 创建新的甘特图实例
+  ganttInstance = new VTableGantt.Gantt(ganttContainer, option);
+  
+  // 监听任务条点击事件
+  ganttInstance.on('click_cell', (args) => {
+    if (args.targetIcon) return; // 忽略图标点击
     
-    if (task.dueDate) {
-      const dueDate = new Date(task.dueDate);
-      dueDate.setHours(0, 0, 0, 0);
-      
-      if (dueDate > endDate) {
-        endDate = new Date(dueDate);
-        // 添加几天的缓冲
-        endDate.setDate(endDate.getDate() + 5);
+    const record = args.record;
+    if (record && record.id) {
+      const task = tasks.find(t => t.id === record.id);
+      if (task) {
+        openTaskModal(task);
       }
     }
   });
   
-  // 确保至少显示15天
-  const dayCount = Math.max(15, getDayDifference(startDate, endDate));
-  
-  return { startDate, endDate, dayCount };
+  // 监听任务条拖拽事件
+  ganttInstance.on('change_date_range', (args) => {
+    const { record, startDate, endDate } = args;
+    const task = tasks.find(t => t.id === record.id);
+    if (task) {
+      // 更新任务的开始和结束时间
+      task.startDate = startDate;
+      task.dueDate = endDate;
+      
+      // 保存到后端
+      ipcRenderer.send('save-task', { projectId: currentProjectId, task });
+    }
+  });
 }
 
-// 计算两个日期之间的天数差
-function getDayDifference(date1, date2) {
-  const diffTime = Math.abs(date2 - date1);
-  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-}
 
-// 渲染日期刻度
-function renderDateScale(startDate, dayCount) {
-  for (let i = 0; i < dayCount; i++) {
-    const date = new Date(startDate);
-    date.setDate(date.getDate() + i);
-    
-    const dayElement = document.createElement('div');
-    dayElement.className = 'gantt-day';
-    
-    // 周末显示不同颜色
-    const dayOfWeek = date.getDay();
-    if (dayOfWeek === 0 || dayOfWeek === 6) {
-      dayElement.style.backgroundColor = '#f5f5f5';
-    }
-    
-    // 显示日期
-    dayElement.innerHTML = `${date.getMonth() + 1}/${date.getDate()}<br><small>${['日', '一', '二', '三', '四', '五', '六'][dayOfWeek]}</small>`;
-    
-    ganttHeaderScale.appendChild(dayElement);
-  }
-}
-
-// 渲染单个任务的甘特条
-function renderGanttTask(task, index, dates) {
-  const { startDate, dayCount } = dates;
-  
-  // 创建任务行
-  const taskRow = document.createElement('div');
-  taskRow.className = 'gantt-task-row';
-  
-  // 任务信息
-  const taskInfo = document.createElement('div');
-  taskInfo.className = 'gantt-task-info';
-  const displayName = task.name || task.content; // 兼容旧数据
-  taskInfo.textContent = displayName.length > 20 ? displayName.substring(0, 20) + '...' : displayName;
-  taskInfo.title = `${task.name || task.content}\n${task.content}`;
-  
-  // 任务时间轴
-  const taskTimeline = document.createElement('div');
-  taskTimeline.className = 'gantt-task-timeline';
-  
-  // 为每一天创建背景网格
-  for (let i = 0; i < dayCount; i++) {
-    const date = new Date(startDate);
-    date.setDate(date.getDate() + i);
-    
-    const dayElement = document.createElement('div');
-     dayElement.className = 'gantt-day';
-     dayElement.style.height = '100%';
-     dayElement.style.borderRight = '1px solid #f0f0f0';
-     dayElement.style.minWidth = '60px';
-    
-    // 周末显示不同背景
-    const dayOfWeek = date.getDay();
-    if (dayOfWeek === 0 || dayOfWeek === 6) {
-      dayElement.style.backgroundColor = '#f9f9f9';
-    }
-    
-    taskTimeline.appendChild(dayElement);
-  }
-  
-  // 创建任务条
-  if (task.dueDate) {
-    const taskBar = document.createElement('div');
-    taskBar.className = 'gantt-task-bar';
-    
-    // 根据优先级设置颜色
-    if (task.priority === '高') {
-      taskBar.classList.add('priority-high');
-    } else if (task.priority === '中') {
-      taskBar.classList.add('priority-medium');
-    } else {
-      taskBar.classList.add('priority-low');
-    }
-    
-    // 如果任务已完成，添加完成样式
-    if (task.completed) {
-      taskBar.classList.add('completed');
-    }
-    
-    // 计算任务条的位置和宽度
-    const createdDate = new Date(task.createdAt);
-    createdDate.setHours(0, 0, 0, 0);
-    const dueDate = new Date(task.dueDate);
-    dueDate.setHours(0, 0, 0, 0);
-    
-    const startDayDiff = Math.max(0, getDayDifference(startDate, createdDate));
-    const taskDuration = Math.max(1, getDayDifference(createdDate, dueDate) + 1);
-    
-    taskBar.style.left = `${startDayDiff * 60}px`;
-     taskBar.style.width = `${taskDuration * 60 - 12}px`;
-    
-    // 显示任务名称
-    const taskDisplayName = task.name || task.content; // 兼容旧数据
-    taskBar.textContent = taskDisplayName.length > 15 ? taskDisplayName.substring(0, 15) + '...' : taskDisplayName;
-    taskBar.title = `任务名称: ${task.name || task.content}\n任务内容: ${task.content}\n优先级: ${task.priority}\n截止日期: ${dueDate.toLocaleDateString()}\n状态: ${task.completed ? '已完成' : '未完成'}`;
-    
-    // 点击任务条打开编辑模态框
-    taskBar.addEventListener('click', () => {
-      openTaskModal(task);
-    });
-    
-    taskTimeline.appendChild(taskBar);
-  }
-  
-  taskRow.appendChild(taskInfo);
-  taskRow.appendChild(taskTimeline);
-  ganttTasks.appendChild(taskRow);
-}
-
-// 添加今日线
-function addTodayLine(startDate, dayCount) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  
-  const dayDiff = getDayDifference(startDate, today);
-  
-  // 如果今天在显示范围内
-  if (dayDiff >= 0 && dayDiff < dayCount) {
-    const todayLine = document.createElement('div');
-    todayLine.className = 'gantt-today-line';
-    todayLine.style.left = `${(dayDiff * 60) + 300}px`; // 300px是任务信息列的宽度
-    
-    ganttView.querySelector('.gantt-body').appendChild(todayLine);
-  }
-}
 
 // 接收删除项目的响应
 ipcRenderer.on('project-deleted', (event, projectId) => {
