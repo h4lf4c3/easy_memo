@@ -3,48 +3,8 @@ const path = require('path');
 const fs = require('fs');
 const Store = require('electron-store');
 
-// 处理Windows安装程序事件
-if (require('electron-squirrel-startup')) app.quit();
-
-// 处理Windows Squirrel安装事件
-if (process.platform === 'win32') {
-  const appFolder = path.dirname(process.execPath);
-  const updateExe = path.resolve(appFolder, '..', 'Update.exe');
-  const exeName = path.basename(process.execPath);
-  
-  // 创建桌面快捷方式
-  const createShortcut = () => {
-    app.setAppUserModelId(process.execPath);
-  };
-  
-  // 处理安装事件
-  const handleStartupEvent = () => {
-    if (process.argv.length === 1) {
-      return false;
-    }
-    
-    const squirrelCommand = process.argv[1];
-    switch (squirrelCommand) {
-      case '--squirrel-install':
-      case '--squirrel-updated':
-        createShortcut();
-        setTimeout(app.quit, 1000);
-        return true;
-      case '--squirrel-uninstall':
-        setTimeout(app.quit, 1000);
-        return true;
-      case '--squirrel-obsolete':
-        app.quit();
-        return true;
-    }
-    return false;
-  };
-  
-  // 如果处理了安装事件，则退出应用
-  if (handleStartupEvent()) {
-    return;
-  }
-}
+// 设置应用ID
+app.setAppUserModelId('com.memo.app');
 
 // 初始化配置存储
 const store = new Store();
