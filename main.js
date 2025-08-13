@@ -3,6 +3,49 @@ const path = require('path');
 const fs = require('fs');
 const Store = require('electron-store');
 
+// 处理Windows安装程序事件
+if (require('electron-squirrel-startup')) app.quit();
+
+// 处理Windows Squirrel安装事件
+if (process.platform === 'win32') {
+  const appFolder = path.dirname(process.execPath);
+  const updateExe = path.resolve(appFolder, '..', 'Update.exe');
+  const exeName = path.basename(process.execPath);
+  
+  // 创建桌面快捷方式
+  const createShortcut = () => {
+    app.setAppUserModelId(process.execPath);
+  };
+  
+  // 处理安装事件
+  const handleStartupEvent = () => {
+    if (process.argv.length === 1) {
+      return false;
+    }
+    
+    const squirrelCommand = process.argv[1];
+    switch (squirrelCommand) {
+      case '--squirrel-install':
+      case '--squirrel-updated':
+        createShortcut();
+        setTimeout(app.quit, 1000);
+        return true;
+      case '--squirrel-uninstall':
+        setTimeout(app.quit, 1000);
+        return true;
+      case '--squirrel-obsolete':
+        app.quit();
+        return true;
+    }
+    return false;
+  };
+  
+  // 如果处理了安装事件，则退出应用
+  if (handleStartupEvent()) {
+    return;
+  }
+}
+
 // 初始化配置存储
 const store = new Store();
 
@@ -24,7 +67,7 @@ function createWindow() {
     icon: path.join(__dirname, 'icon.svg'), // SVG在某些平台可能不被完全支持
     // 根据不同平台使用不同的图标格式
     ...(process.platform === 'win32' ? {
-      icon: path.join(__dirname, 'icon.png') // Windows优先使用PNG
+      icon: path.join(__dirname, 'icon.ico') // Windows使用ICO格式
     } : {})
   });
   
@@ -35,7 +78,7 @@ function createWindow() {
   mainWindow.loadFile('index.html');
 
   // 打开开发者工具
-  mainWindow.webContents.openDevTools();
+  // mainWindow.webContents.openDevTools();
 
   // 当window被关闭时，触发下面的事件
   mainWindow.on('closed', function () {
