@@ -16,6 +16,7 @@ const backToProjectsBtn = document.getElementById('back-to-projects-btn');
 const addTaskBtn = document.getElementById('add-task-btn');
 const toggleGanttViewBtn = document.getElementById('toggle-gantt-view-btn');
 const settingsBtn = document.getElementById('settings-btn');
+const themeBtn = document.getElementById('theme-btn');
 const importDataBtn = document.getElementById('import-data-btn');
 const exportDataBtn = document.getElementById('export-data-btn');
 const settingsDropdown = document.getElementById('settings-dropdown');
@@ -23,6 +24,7 @@ const settingsDropdown = document.getElementById('settings-dropdown');
 // 模态框
 const projectModal = document.getElementById('project-modal');
 const taskModal = document.getElementById('task-modal');
+const themeModal = document.getElementById('theme-modal');
 const projectForm = document.getElementById('project-form');
 const taskForm = document.getElementById('task-form');
 
@@ -310,6 +312,7 @@ closeButtons.forEach(button => {
   button.addEventListener('click', () => {
     projectModal.style.display = 'none';
     taskModal.style.display = 'none';
+    themeModal.style.display = 'none';
   });
 });
 
@@ -320,6 +323,9 @@ window.addEventListener('click', (event) => {
   }
   if (event.target === taskModal) {
     taskModal.style.display = 'none';
+  }
+  if (event.target === themeModal) {
+    themeModal.style.display = 'none';
   }
 });
 
@@ -403,7 +409,7 @@ function renderGanttChart(tasks) {
     {
       field: 'title',
       title: '任务名称',
-      width: 80,
+      width: 60,
       sort: true,
       editor: 'input'
     },
@@ -417,7 +423,7 @@ function renderGanttChart(tasks) {
     {
       field: 'end',
       title: '结束时间',
-      width: 80,
+      width: 400,
       sort: true,
       editor: 'date-input'
     }
@@ -662,8 +668,8 @@ function renderGanttChart(tasks) {
   // 创建新的甘特图实例
   ganttInstance = new VTableGantt.Gantt(ganttContainer, option);
   
-  // 监听任务条点击事件
-  ganttInstance.on('click_cell', (args) => {
+  // 监听任务条双击事件
+  ganttInstance.on('DBLCLICK_CELL', (args) => {
     if (args.targetIcon) return; // 忽略图标点击
     
     const record = args.record;
@@ -675,17 +681,65 @@ function renderGanttChart(tasks) {
     }
   });
   
-  // 监听任务条拖拽事件
+  // 监听任务条拖拽事件 - 移动任务
   ganttInstance.on('change_date_range', (args) => {
     const { record, startDate, endDate } = args;
     const task = tasks.find(t => t.id === record.id);
     if (task) {
+      // 格式化日期为 YYYY-MM-DD 格式
+      const formatDate = (date) => {
+        if (typeof date === 'string') return date.split('T')[0];
+        return date.toISOString().split('T')[0];
+      };
+      
       // 更新任务的开始和结束时间
-      task.startDate = startDate;
-      task.dueDate = endDate;
+      task.startDate = formatDate(startDate);
+      task.dueDate = formatDate(endDate);
+      
+      // 更新当前任务列表中的数据
+      const taskIndex = currentTasks.findIndex(t => t.id === task.id);
+      if (taskIndex !== -1) {
+        currentTasks[taskIndex] = { ...task };
+      }
       
       // 保存到后端
       ipcRenderer.send('save-task', { projectId: currentProjectId, task });
+      
+      // 重新渲染表格视图以保持数据同步
+      if (currentViewMode === 'table') {
+        renderTasks(currentTasks);
+      }
+    }
+  });
+  
+  // 监听任务条调整大小事件 - 调整任务持续时间
+  ganttInstance.on('resize_task_bar', (args) => {
+    const { record, startDate, endDate } = args;
+    const task = tasks.find(t => t.id === record.id);
+    if (task) {
+      // 格式化日期为 YYYY-MM-DD 格式
+      const formatDate = (date) => {
+        if (typeof date === 'string') return date.split('T')[0];
+        return date.toISOString().split('T')[0];
+      };
+      
+      // 更新任务的开始和结束时间
+      task.startDate = formatDate(startDate);
+      task.dueDate = formatDate(endDate);
+      
+      // 更新当前任务列表中的数据
+      const taskIndex = currentTasks.findIndex(t => t.id === task.id);
+      if (taskIndex !== -1) {
+        currentTasks[taskIndex] = { ...task };
+      }
+      
+      // 保存到后端
+      ipcRenderer.send('save-task', { projectId: currentProjectId, task });
+      
+      // 重新渲染表格视图以保持数据同步
+      if (currentViewMode === 'table') {
+        renderTasks(currentTasks);
+      }
     }
   });
 }
@@ -742,4 +796,61 @@ ipcRenderer.on('import-data-result', (event, result) => {
 ipcRenderer.on('data-imported', () => {
   // 刷新项目列表
   loadProjects();
+});
+
+// 主题功能
+themeBtn.addEventListener('click', () => {
+  settingsDropdown.classList.remove('show');
+  themeModal.style.display = 'block';
+  loadCurrentTheme();
+});
+
+// 加载当前主题
+function loadCurrentTheme() {
+  const currentTheme = localStorage.getItem('app-theme') || 'default';
+  const themeOptions = document.querySelectorAll('.theme-option');
+  
+  themeOptions.forEach(option => {
+    option.classList.remove('active');
+    if (option.dataset.theme === currentTheme) {
+      option.classList.add('active');
+    }
+  });
+}
+
+// 主题选择事件
+document.querySelectorAll('.theme-option').forEach(option => {
+  option.addEventListener('click', () => {
+    const theme = option.dataset.theme;
+    applyTheme(theme);
+    
+    // 更新选中状态
+    document.querySelectorAll('.theme-option').forEach(opt => {
+      opt.classList.remove('active');
+    });
+    option.classList.add('active');
+    
+    // 保存主题设置
+    localStorage.setItem('app-theme', theme);
+    
+    // 关闭模态框
+    setTimeout(() => {
+      themeModal.style.display = 'none';
+    }, 300);
+  });
+});
+
+// 应用主题
+function applyTheme(theme) {
+  if (theme === 'default') {
+    document.documentElement.removeAttribute('data-theme');
+  } else {
+    document.documentElement.setAttribute('data-theme', theme);
+  }
+}
+
+// 页面加载时应用保存的主题
+document.addEventListener('DOMContentLoaded', () => {
+  const savedTheme = localStorage.getItem('app-theme') || 'default';
+  applyTheme(savedTheme);
 });

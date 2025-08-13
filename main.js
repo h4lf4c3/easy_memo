@@ -21,7 +21,11 @@ function createWindow() {
     },
     frame: true,
     backgroundColor: '#f5f5f5',
-    icon: path.join(__dirname, 'icon.svg')
+    icon: path.join(__dirname, 'icon.svg'), // SVG在某些平台可能不被完全支持
+    // 根据不同平台使用不同的图标格式
+    ...(process.platform === 'win32' ? {
+      icon: path.join(__dirname, 'icon.png') // Windows优先使用PNG
+    } : {})
   });
   
   // 移除菜单栏
