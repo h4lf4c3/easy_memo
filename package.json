@@ -19,7 +19,8 @@
       "target": [
         "nsis"
       ],
-      "icon": "icon.ico"
+      "icon": "icon.png",
+      "forceCodeSigning": false
     },
     "nsis": {
       "oneClick": false,

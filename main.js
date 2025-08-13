@@ -38,7 +38,7 @@ function createWindow() {
   mainWindow.loadFile('index.html');
 
   // 打开开发者工具
-  // mainWindow.webContents.openDevTools();
+  mainWindow.webContents.openDevTools();
 
   // 当window被关闭时，触发下面的事件
   mainWindow.on('closed', function () {
