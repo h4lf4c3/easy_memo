@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>备忘录管理系统</title>
+  <link rel="stylesheet" href="styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="container">
+    <header class="app-header">
+      <div class="logo">
+        <img src="icon.svg" alt="memo" width="32" height="32">
+        <h1>EasyMemo</h1>
+      </div>
+      <div class="app-menu">
+        <button id="settings-btn" class="icon-btn">⚙️</button>
+        <div id="settings-dropdown" class="dropdown-menu">
+          <button id="import-data-btn">导入数据</button>
+          <button id="export-data-btn">导出数据</button>
+        </div>
+      </div>
+    </header>
+    <div id="project-view" class="view active">
+      <div class="view-header">
+        <h2>项目列表</h2>
+      </div>
+      <div class="toolbar">
+        <div class="toolbar-right">
+          <button id="add-project-btn">添加项目</button>
+        </div>
+      </div>
+      <div class="table-container">
+        <table id="projects-table">
+          <thead>
+            <tr>
+              <th>序号</th>
+              <th>项目名称</th>
+              <th>开始时间</th>
+              <th>最新修改时间</th>
+              <th>完成事项数</th>
+              <th>未完成事项数</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="projects-list">
+            <!-- 项目列表将在这里动态生成 -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="task-view" class="view">
+      <div class="view-header">
+        <h2 id="current-project-name">项目详情</h2>
+        <button id="back-to-projects-btn">返回项目列表</button>
+        <button id="toggle-gantt-view-btn">甘特图视图</button>
+      </div>
+      <div class="toolbar">
+        <button id="add-task-btn">添加任务</button>
+      </div>
+      <div id="table-view" class="view-content active">
+        <div class="table-container">
+          <table id="tasks-table">
+            <thead>
+              <tr>
+                <th>序号</th>
+                <th>任务名称</th>
+                <th>记录时间</th>
+                <th>紧急程度</th>
+                <th>预计完成时间</th>
+                <th>完成情况</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="tasks-list">
+              <!-- 任务列表将在这里动态生成 -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div id="gantt-view" class="view-content">
+        <div class="gantt-container">
+          <div class="gantt-header">
+            <div class="gantt-header-scale"></div>
+          </div>
+          <div class="gantt-body">
+            <div id="gantt-tasks"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 项目表单模态框 -->
+  <div id="project-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>添加/编辑项目</h3>
+        <span class="close">&times;</span>
+      </div>
+      <form id="project-form">
+        <input type="hidden" id="project-id">
+        <div class="form-group">
+          <label for="project-name">项目名称</label>
+          <input type="text" id="project-name" required>
+        </div>
+        <div class="form-actions">
+          <button type="submit">保存</button>
+          <button type="button" class="cancel-btn">取消</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 任务表单模态框 -->
+  <div id="task-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>添加/编辑任务</h3>
+        <span class="close">&times;</span>
+      </div>
+      <form id="task-form">
+        <input type="hidden" id="task-id">
+        <div class="form-group">
+          <label for="task-name">任务名称</label>
+          <input type="text" id="task-name" required placeholder="请输入任务名称">
+        </div>
+        <div class="form-group">
+          <label for="task-content">内容</label>
+          <textarea id="task-content" required style="pointer-events: auto; user-select: text;" placeholder="请输入详细内容"></textarea>
+        </div>
+        <div class="form-group">
+          <label for="task-priority">紧急程度</label>
+          <select id="task-priority" required>
+            <option value="低">低</option>
+            <option value="中">中</option>
+            <option value="高">高</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="task-due-date">预计完成时间</label>
+          <input type="date" id="task-due-date">
+        </div>
+        <div class="form-group">
+          <label for="task-completed">完成情况</label>
+          <select id="task-completed" required>
+            <option value="false">未完成</option>
+            <option value="true">已完成</option>
+          </select>
+        </div>
+        <div class="form-actions">
+          <button type="submit">保存</button>
+          <button type="button" class="cancel-btn">取消</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>
