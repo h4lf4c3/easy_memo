@@ -19,8 +19,10 @@
       "target": [
         "nsis"
       ],
-      "icon": "icon.png",
-      "forceCodeSigning": false
+      "icon": "image/icon.png",
+      "forceCodeSigning": false,
+      "verifyUpdateCodeSignature": false,
+      "signAndEditExecutable": false
     },
     "nsis": {
       "oneClick": false,

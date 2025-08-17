@@ -19,7 +19,7 @@ function createWindow() {
 
   global.mainWindow.setMenu(null);
   global.mainWindow.loadFile('renderer/index.html');
-  global.mainWindow.webContents.openDevTools();
+  // global.mainWindow.webContents.openDevTools();
 
   global.mainWindow.on('closed', function () {
     global.mainWindow = null;
