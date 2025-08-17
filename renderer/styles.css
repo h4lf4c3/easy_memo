@@ -196,11 +196,18 @@ html, body {
 
 .view-content {
   display: none;
+  height: calc(100vh - 200px);
+  overflow: auto;
 }
 
 .view-content.active {
   display: block;
   animation: fadeIn 0.3s ease-in-out;
+}
+
+#gantt-view {
+  height: calc(100vh - 200px);
+  overflow: hidden;
 }
 
 @keyframes slideIn {
@@ -254,11 +261,15 @@ thead {
   box-shadow: 0 1px 3px rgba(0,0,0,0.05);
   background-color: white;
   overflow: hidden;
-  min-height: 500px;
-  max-height: 70vh;
+  height: 600px;
+  width: 100%;
   position: relative;
   z-index: 1;
   isolation: isolate;
+  height: 100%;
+  width: 100%;
+
+
 }
 
 /* 移除旧的甘特图样式，现在使用 @visactor/vtable-gantt 组件 */
@@ -586,6 +597,55 @@ textarea {
 .priority-low {
   color: #4CAF50;
   font-weight: bold;
+}
+
+/* 甘特图工具栏样式 */
+.gantt-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 15px;
+  background-color: var(--bg-light);
+  border-bottom: 1px solid #e1e4e8;
+  height: 50px;
+  width: 300px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.gantt-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.gantt-toolbar label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-color);
+  margin: 0;
+  width: 150px;
+}
+
+.time-scale-selector {
+  padding: 6px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: var(--card-color);
+  color: var(--text-color);
+  font-size: 14px;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.time-scale-selector:hover {
+  border-color: var(--primary-color);
+}
+
+.time-scale-selector:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2);
 }
 
 /* 主题设置模态框样式 */
