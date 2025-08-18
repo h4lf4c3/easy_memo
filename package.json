@@ -19,7 +19,7 @@
       "target": [
         "nsis"
       ],
-      "icon": "image/icon.png",
+      "icon": "image/icon.ico",
       "forceCodeSigning": false,
       "verifyUpdateCodeSignature": false,
       "signAndEditExecutable": false
@@ -28,7 +28,9 @@
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
+      "createStartMenuShortcut": true,
+      "installerIcon": "image/icon.ico",
+      "uninstallerIcon": "image/icon.ico"
     }
   },
   "keywords": [
