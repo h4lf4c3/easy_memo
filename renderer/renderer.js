@@ -317,6 +317,15 @@ function openTaskModal(task = null) {
   const taskDueDateInput = document.getElementById('task-due-date');
   const taskCompletedInput = document.getElementById('task-completed');
   
+  // 获取或创建createdAt隐藏字段
+  let taskCreatedAtInput = document.getElementById('task-created-at');
+  if (!taskCreatedAtInput) {
+    taskCreatedAtInput = document.createElement('input');
+    taskCreatedAtInput.type = 'hidden';
+    taskCreatedAtInput.id = 'task-created-at';
+    document.getElementById('task-form').appendChild(taskCreatedAtInput);
+  }
+  
   if (task) {
     // 编辑模式
     taskIdInput.value = task.id;
@@ -326,6 +335,7 @@ function openTaskModal(task = null) {
     taskStartDateInput.value = task.startDate ? task.startDate.split('T')[0] : '';
     taskDueDateInput.value = task.dueDate ? task.dueDate.split('T')[0] : '';
     taskCompletedInput.value = task.completed.toString();
+    taskCreatedAtInput.value = task.createdAt || new Date().toISOString();
   } else {
     // 添加模式
     taskIdInput.value = '';
@@ -335,6 +345,7 @@ function openTaskModal(task = null) {
     taskStartDateInput.value = '';
     taskDueDateInput.value = '';
     taskCompletedInput.value = 'false';
+    taskCreatedAtInput.value = '';
   }
   
   // 确保textarea可编辑
@@ -401,6 +412,7 @@ taskForm.addEventListener('submit', (e) => {
   const taskStartDate = document.getElementById('task-start-date').value;
   const taskDueDate = document.getElementById('task-due-date').value;
   const taskCompleted = document.getElementById('task-completed').value === 'true';
+  const taskCreatedAt = document.getElementById('task-created-at').value;
   
   const task = {
     id: taskId,
@@ -409,7 +421,8 @@ taskForm.addEventListener('submit', (e) => {
     priority: taskPriority,
     startDate: taskStartDate,
     dueDate: taskDueDate,
-    completed: taskCompleted
+    completed: taskCompleted,
+    createdAt: taskCreatedAt
   };
   
   ipcRenderer.send('save-task', { projectId: currentProjectId, task });
