@@ -2,11 +2,32 @@ const { ipcMain } = require('electron');
 const store = require('./store');
 const { exportData, importData } = require('./fileService');
 
+// 计算项目的超期任务数
+function calculateOverdueTasks(projectId) {
+  const tasks = store.get(`tasks.${projectId}`, []);
+  const now = new Date();
+  
+  return tasks.filter(task => {
+    if (task.completed) return false; // 已完成的任务不算超期
+    if (!task.dueDate) return false; // 没有截止日期的任务不算超期
+    
+    const dueDate = new Date(task.dueDate);
+    return dueDate < now; // 截止日期已过的未完成任务
+  }).length;
+}
+
 function registerIpcHandlers() {
   // 项目
   ipcMain.on('load-projects', (event) => {
     const projects = store.get('projects', []);
-    event.reply('projects-loaded', projects);
+    
+    // 为每个项目计算超期任务数
+    const projectsWithOverdue = projects.map(project => ({
+      ...project,
+      overdueCount: calculateOverdueTasks(project.id)
+    }));
+    
+    event.reply('projects-loaded', projectsWithOverdue);
   });
 
   ipcMain.on('save-project', (event, project) => {
@@ -78,6 +99,8 @@ function registerIpcHandlers() {
 
     event.reply('task-saved', task);
     if (projectIndex !== -1) {
+      // 更新超期任务数
+      projects[projectIndex].overdueCount = calculateOverdueTasks(projectId);
       event.reply('project-updated', projects[projectIndex]);
     }
   });
@@ -106,6 +129,8 @@ function registerIpcHandlers() {
 
       event.reply('task-deleted', taskId);
       if (projectIndex !== -1) {
+        // 更新超期任务数
+        projects[projectIndex].overdueCount = calculateOverdueTasks(projectId);
         event.reply('project-updated', projects[projectIndex]);
       }
     }

@@ -306,6 +306,32 @@ tr:hover td {
   background-color: rgba(165, 214, 167, 0.1);
 }
 
+/* 超期任务数样式 */
+.overdue-count {
+  font-weight: bold;
+  color: var(--danger-color);
+}
+
+.overdue-count:empty::after,
+.overdue-count[data-count="0"]::after {
+  content: "0";
+  color: var(--text-light);
+  font-weight: normal;
+}
+
+/* 超期状态图标样式 */
+.overdue-status {
+  text-align: center;
+  width: 60px;
+}
+
+.overdue-icon {
+  color: #000;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: help;
+}
+
 /* 项目行样式 */
 .project-row {
   cursor: pointer;
