@@ -137,6 +137,7 @@ function renderProjects(projects) {
       <td>${updatedDate}</td>
       <td>${project.completedCount}</td>
       <td>${project.pendingCount}</td>
+      <td class="overdue-count">${project.overdueCount || 0}</td>
       <td>
         <button class="edit-btn" data-id="${project.id}">编辑</button>
         <button class="delete-btn" data-id="${project.id}">删除</button>
@@ -222,6 +223,10 @@ function renderTasks(tasks) {
     const priorityClass = `priority-${task.priority === '高' ? 'high' : task.priority === '中' ? 'medium' : 'low'}`;
     const statusClass = task.completed ? 'status-completed' : 'status-pending';
     
+    // 判断任务是否超期
+    const isOverdue = !task.completed && task.dueDate && new Date(task.dueDate) < new Date();
+    const overdueIcon = isOverdue ? '<span class="overdue-icon" title="任务已超期">⚠</span>' : '';
+    
     row.innerHTML = `
       <td>${index + 1}</td>
       <td title="${task.content}">${task.name || task.content}</td>
@@ -230,6 +235,7 @@ function renderTasks(tasks) {
       <td>${startDate}</td>
       <td>${dueDate}</td>
       <td class="${statusClass}">${task.completed ? '已完成' : '未完成'}</td>
+      <td class="overdue-status">${overdueIcon}</td>
       <td>
         <button class="edit-btn" data-id="${task.id}">编辑</button>
         <button class="delete-btn" data-id="${task.id}">删除</button>
@@ -446,11 +452,7 @@ ipcRenderer.on('task-deleted', (event, taskId) => {
   loadTasks(currentProjectId);
 });
 
-// 当任务表单提交后，如果在甘特图视图，更新甘特图
-taskForm.addEventListener('submit', () => {
-  // 在loadTasks中会重新渲染甘特图
-  // 这里不需要额外处理
-});
+// 任务表单提交处理已在上面的事件监听器中完成
 
 // 接收项目更新的响应
 ipcRenderer.on('project-updated', (event, project) => {
